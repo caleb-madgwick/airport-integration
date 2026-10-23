@@ -4,7 +4,7 @@ An independent system-design case study. All customers, airlines and data are sy
 
 ## Overview
 
-Airports and ground handlers run on data from systems that don't agree with each other. Flight APIs and baggage exports each use their own identifiers, time formats and file formats. This project shows how to bring those sources into one reliable model, so a new customer can be added without rebuilding the system.
+Airport systems don't agree: flight APIs and baggage exports each use their own identifiers, time formats and file formats. This project brings them into one reliable model, so a new customer can be added without rebuilding the system.
 
 ## Architecture
 
@@ -15,14 +15,14 @@ Customer data passes through **adapters** into a shared **canonical model**, goe
 ## Key Design Decisions
 
 - **Reusable adapters:** each customer's format is handled in one small adapter, so onboarding is repeatable and customer formats never reach the core.
-- **Shared validation:** the same rules apply to every customer, so unreliable data can't slip through to downstream systems. An identical duplicate is accepted once. Conflicting records for the same flight are held for review, never silently overwritten.
+- **Shared validation:** the same rules apply to every customer, so unreliable data can't slip through to downstream systems.
 - **Three explicit outcomes:** every record is **accepted**, **held for review** or **rejected** with a reason, so problems are visible rather than silently ignored.
 
 ## Customer Onboarding
 
 **Discover → Design → Validate → Deploy**
 
-Adding the second fictional customer took one new adapter and its tests. The core model and validation logic didn't change.
+Adding the second fictional customer took one new adapter, its config and tests. The core model and validation logic didn't change.
 
 ## Run the Demo
 
@@ -33,6 +33,15 @@ python3 integration.py
 python3 -m unittest -v
 ```
 
-The demo shows the same flight, sent in two customers' different formats, producing an identical record. Bad or conflicting data is rejected or held for review instead of being guessed. The 15 sample records give 7 accepted, 2 held for review and 6 rejected.
+The demo shows one flight, sent in two customers' formats, producing an identical record. Bad or conflicting data is rejected or held for review instead of being guessed. The 15 sample records give 7 accepted, 2 held for review and 6 rejected.
 
-*This is a prototype. A production system would also need persistence, deduplication and update ordering across runs, monitoring and failure recovery.*
+## Production Reliability (design only)
+
+**Prototype:** within one run, an identical duplicate flight is accepted once and conflicting flight records are held for review. Nothing is kept between runs.
+
+**Production:**
+
+- **Idempotency:** store each delivery's source, record ID and content hash, so a retry or resend is skipped, even after a restart.
+- **Updates:** apply a record only if its source version or timestamp is newer than the stored flight state. Log and ignore older records and duplicates.
+- **Authority:** agree during onboarding which source owns each field, e.g. the airline owns flight status. Equal sources that disagree, or records with unreliable timestamps, go to review.
+- **Audit:** keep an append-only log of every record received, and derive current state from it.
