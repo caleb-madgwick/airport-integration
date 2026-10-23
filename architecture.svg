@@ -46,13 +46,9 @@
   <text x="36" y="137" class="h">Flight REST API</text>
   <text x="36" y="156" class="sub">Kestrel · nested JSON, UTC</text>
 
-  <rect x="24" y="180" width="176" height="54" rx="8" class="box"/>
-  <text x="36" y="203" class="h">Baggage CSV export</text>
-  <text x="36" y="222" class="sub">Kestrel · local time, no offset</text>
-
-  <rect x="24" y="246" width="176" height="54" rx="8" class="box dashed"/>
-  <text x="36" y="269" class="h">GSE availability API</text>
-  <text x="36" y="288" class="sub">Kestrel · design only</text>
+  <rect x="24" y="213" width="176" height="54" rx="8" class="box"/>
+  <text x="36" y="236" class="h">Baggage CSV export</text>
+  <text x="36" y="255" class="sub">Kestrel · local time, no offset</text>
 
   <rect x="24" y="312" width="176" height="54" rx="8" class="box"/>
   <text x="36" y="335" class="h">Flight API</text>
@@ -60,8 +56,7 @@
 
   <!-- Source -> adapter -->
   <line x1="200" y1="141" x2="234" y2="141" class="flow" marker-end="url(#arrow)"/>
-  <line x1="200" y1="207" x2="234" y2="207" class="flow" marker-end="url(#arrow)"/>
-  <line x1="200" y1="273" x2="234" y2="273" class="flow dashed" marker-end="url(#arrow)"/>
+  <line x1="200" y1="240" x2="234" y2="240" class="flow" marker-end="url(#arrow)"/>
   <line x1="200" y1="339" x2="234" y2="339" class="flow" marker-end="url(#arrow)"/>
 
   <!-- Adapters -->
@@ -69,13 +64,9 @@
   <text x="248" y="137" class="mono">kestrel_flight()</text>
   <text x="248" y="156" class="sub">status codes → canonical</text>
 
-  <rect x="236" y="180" width="174" height="54" rx="8" class="box"/>
-  <text x="248" y="203" class="mono">kestrel_bag()</text>
-  <text x="248" y="222" class="sub">local time → UTC, DST-safe</text>
-
-  <rect x="236" y="246" width="174" height="54" rx="8" class="box dashed"/>
-  <text x="248" y="269" class="mono">GSE adapter</text>
-  <text x="248" y="288" class="sub">plus freshness tracking</text>
+  <rect x="236" y="213" width="174" height="54" rx="8" class="box"/>
+  <text x="248" y="236" class="mono">kestrel_bag()</text>
+  <text x="248" y="255" class="sub">local time → UTC, DST-safe</text>
 
   <rect x="236" y="312" width="174" height="54" rx="8" class="box"/>
   <text x="248" y="335" class="mono">banksia_flight()</text>
@@ -89,8 +80,7 @@
 
   <!-- Adapter -> canonical -->
   <line x1="410" y1="141" x2="454" y2="141" class="flow" marker-end="url(#arrow)"/>
-  <line x1="410" y1="207" x2="454" y2="207" class="flow" marker-end="url(#arrow)"/>
-  <line x1="410" y1="273" x2="454" y2="273" class="flow dashed" marker-end="url(#arrow)"/>
+  <line x1="410" y1="240" x2="454" y2="240" class="flow" marker-end="url(#arrow)"/>
   <line x1="410" y1="339" x2="454" y2="339" class="flow" marker-end="url(#arrow)"/>
 
   <!-- Canonical model -->
@@ -99,15 +89,13 @@
   <text x="480" y="146" class="mono" style="font-size:12.5px">Flight</text>
   <rect x="468" y="162" width="156" height="26" rx="6" class="pill"/>
   <text x="480" y="180" class="mono" style="font-size:12.5px">BaggageTransfer</text>
-  <rect x="468" y="196" width="156" height="26" rx="6" class="pill dashed" style="fill:#ffffff"/>
-  <text x="480" y="214" class="mono" style="font-size:12.5px;fill:#59636e">EquipmentStatus</text>
-  <text x="468" y="252" class="small">• all timestamps in UTC</text>
-  <text x="468" y="270" class="small">• IATA airport codes</text>
+  <text x="468" y="228" class="small">• all timestamps in UTC</text>
+  <text x="468" y="250" class="small">• IATA airport codes</text>
+  <text x="468" y="272" class="small">• flight_key = carrier +</text>
+  <text x="480" y="288" class="small">number + local date</text>
+  <text x="468" y="310" class="small">• provenance on every</text>
+  <text x="480" y="326" class="small">record (source_ref)</text>
   <text x="456" y="440" class="note">Shared reference data: airports (IATA, ICAO, IANA timezone).</text>
-  <text x="468" y="288" class="small">• flight_key = carrier +</text>
-  <text x="480" y="304" class="small">number + local date</text>
-  <text x="468" y="322" class="small">• provenance on every</text>
-  <text x="480" y="338" class="small">record (source_ref)</text>
 
   <!-- Canonical -> validation -->
   <line x1="636" y1="240" x2="674" y2="240" class="flow" style="stroke-width:1.8" marker-end="url(#arrow)"/>
@@ -154,7 +142,7 @@
   <text x="948" y="356" class="sub">source reference</text>
 
   <text x="456" y="404" class="note">The prototype prints all three outcomes. Dispatch delivery, the review queue, deduplication,</text>
-  <text x="456" y="420" class="note">ordering, retries and replay are production design only (see README).</text>
+  <text x="456" y="420" class="note">ordering, retries and replay would be needed in production.</text>
 
   <!-- Legend -->
   <line x1="16" y1="484" x2="52" y2="484" class="flow"/>

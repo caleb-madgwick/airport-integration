@@ -4,7 +4,7 @@ An independent system-design case study. All customers, airlines and data are sy
 
 ## Overview
 
-Airports and ground handlers run on data from systems that don't agree with each other. Flight APIs, baggage exports and equipment feeds each use their own identifiers, time formats and file formats. This project shows how to bring those sources into one reliable model, so a new customer can be added without rebuilding the system.
+Airports and ground handlers run on data from systems that don't agree with each other. Flight APIs and baggage exports each use their own identifiers, time formats and file formats. This project shows how to bring those sources into one reliable model, so a new customer can be added without rebuilding the system.
 
 ## Architecture
 

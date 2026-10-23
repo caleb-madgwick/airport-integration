@@ -180,6 +180,8 @@ def run(data):
     """Process every feed. Each record ends in exactly one of the three outcomes."""
     result, valid = {"accepted": [], "needs_review": [], "rejected": []}, []
     for feed in data["feeds"]:
+        if "payload_file" in feed:  # e.g. a CSV export, read exactly as the customer delivers it
+            feed = dict(feed, payload=Path(__file__).with_name(feed["payload_file"]).read_text())
         customer, source = feed["customer"], feed["source"]
         split, adapt = ADAPTERS[(customer, source)]  # an unregistered feed is a setup error
         for n, raw in enumerate(split(feed["payload"]), start=1):
