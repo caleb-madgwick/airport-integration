@@ -165,15 +165,30 @@ ADAPTERS = {  # (customer, source) -> (split payload into raw records, adapter)
 
 # --- Pipeline ------------------------------------------------------------------------
 
-def review_reason(record, flights):
-    """Cross-source check: a transfer bag must be heading for a known, operating flight."""
-    if isinstance(record, BaggageTransfer):
-        outbound = flights.get((record.customer, record.outbound_flight_key))
-        if outbound is None:
-            return f"outbound flight {record.outbound_flight_key} is not in the flight feed"
-        if outbound.status == "CANCELLED":
-            return f"outbound flight {record.outbound_flight_key} is cancelled"
-    return None
+def has_conflict(flights):
+    """True if records for one flight disagree, ignoring which delivery each came from."""
+    return len({replace(f, source_ref="", source_updated_utc=None) for f in flights}) > 1
+
+
+def route(record, flights_by_key):
+    """Cross-record checks on a valid record -> (outcome, reason). Never depends on input order."""
+    if isinstance(record, Flight):
+        group = flights_by_key[(record.customer, record.flight_key)]
+        if has_conflict(group):
+            refs = ", ".join(f.source_ref for f in group)
+            return "needs_review", f"conflicting records for {record.flight_key}: {refs}"
+        if record is not group[0]:
+            return "rejected", f"identical duplicate of {group[0].source_ref}"
+        return "accepted", None
+    key = record.outbound_flight_key
+    group = flights_by_key.get((record.customer, key))
+    if group is None:
+        return "needs_review", f"outbound flight {key} is not in the flight feed"
+    if has_conflict(group):
+        return "needs_review", f"outbound flight {key} has conflicting records"
+    if group[0].status == "CANCELLED":
+        return "needs_review", f"outbound flight {key} is cancelled"
+    return "accepted", None
 
 
 def run(data):
@@ -196,14 +211,20 @@ def run(data):
             if errors:
                 result["rejected"].append({"source_ref": ref, "errors": errors, "raw": raw})
             else:
-                valid.append(record)
-    flights = {(r.customer, r.flight_key): r for r in valid if isinstance(r, Flight)}
-    for record in valid:
-        reason = review_reason(record, flights)
-        if reason:
+                valid.append((record, raw))
+    flights_by_key = {}  # group first, so no record silently replaces another
+    for record, _ in valid:
+        if isinstance(record, Flight):
+            flights_by_key.setdefault((record.customer, record.flight_key), []).append(record)
+    for record, raw in valid:
+        outcome, reason = route(record, flights_by_key)
+        if outcome == "accepted":
+            result["accepted"].append(record)
+        elif outcome == "needs_review":
             result["needs_review"].append({"record": record, "reason": reason})
         else:
-            result["accepted"].append(record)
+            result["rejected"].append(
+                {"source_ref": record.source_ref, "errors": [reason], "raw": raw})
     return result
 
 

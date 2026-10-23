@@ -94,6 +94,28 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(result["needs_review"][0]["reason"], "outbound flight XA123-2026-10-23 is cancelled")
 
 
+class DuplicateTests(unittest.TestCase):
+    def test_identical_duplicate_is_accepted_once(self):
+        resent = dict(KESTREL_FLIGHT, updated="2026-10-23T02:15:00Z")  # same content, re-sent
+        result = run(feeds(("kestrel", "flight_api", {"flights": [KESTREL_FLIGHT, resent]})))
+        self.assertEqual([r.source_ref for r in result["accepted"]], ["kestrel/flight_api#1"])
+        self.assertEqual(result["rejected"][0]["source_ref"], "kestrel/flight_api#2")
+        self.assertEqual(result["rejected"][0]["errors"], ["identical duplicate of kestrel/flight_api#1"])
+
+    def test_conflicting_records_are_held_for_review_in_any_order(self):
+        cancelled = dict(KESTREL_FLIGHT, status_code="CNX")
+        bags = BAG_HEADER + "0081234567,XC0456,23/10/2026,XA0123,23/10/2026,23/10/2026 12:48\n"
+        for order in ([KESTREL_FLIGHT, cancelled], [cancelled, KESTREL_FLIGHT]):
+            with self.subTest(first_status=order[0]["status_code"]):
+                result = run(feeds(("kestrel", "flight_api", {"flights": order}),
+                                   ("kestrel", "baggage_csv", bags)))
+                self.assertEqual(result["accepted"], [])
+                reasons = [item["reason"] for item in result["needs_review"]]
+                self.assertEqual(reasons[:2], ["conflicting records for XA123-2026-10-23: "
+                                               "kestrel/flight_api#1, kestrel/flight_api#2"] * 2)
+                self.assertEqual(reasons[2], "outbound flight XA123-2026-10-23 has conflicting records")
+
+
 class SampleDataTests(unittest.TestCase):
     def test_every_sample_record_has_exactly_one_outcome(self):
         data = json.loads((Path(__file__).parent / "sample_data.json").read_text())
