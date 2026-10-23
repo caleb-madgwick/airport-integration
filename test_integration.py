@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from integration import (
-    CUSTOMERS, Flight, banksia_flight, kestrel_bag, kestrel_flight, local_to_utc, run, validate,
+    CUSTOMERS, DELAYED_FLIGHTS_WITH_TRANSFER_BAGS, FLIGHTS_WITHOUT_TRANSFER_BAGS, Flight,
+    banksia_flight, kestrel_bag, kestrel_flight, load_operational_db, local_to_utc, run, validate,
 )
 
 KESTREL_FLIGHT = {
@@ -127,6 +128,34 @@ class SampleDataTests(unittest.TestCase):
                 + [i["source_ref"] for i in result["rejected"]])
         self.assertEqual(len(refs), len(set(refs)))
         self.assertTrue(all(validate(r) == [] for r in result["accepted"]))
+
+
+class OperationalDataTests(unittest.TestCase):
+    def setUp(self):
+        self.result = run(json.loads((Path(__file__).parent / "sample_data.json").read_text()))
+        self.db = load_operational_db(self.result)
+
+    def test_only_accepted_records_are_loaded(self):
+        accepted = sorted((r.customer, r.flight_key) for r in self.result["accepted"]
+                          if isinstance(r, Flight))
+        self.assertEqual(self.db.execute("SELECT customer, flight_key FROM flights ORDER BY 1, 2")
+                         .fetchall(), accepted)
+        bags = [tag for (tag,) in
+                self.db.execute("SELECT bag_tag FROM baggage_transfers ORDER BY 1")]
+        self.assertEqual(bags, ["0081234567", "0081234568"])  # review and rejected bags stay out
+
+    def test_flights_without_transfer_bags(self):
+        self.assertEqual(self.db.execute(FLIGHTS_WITHOUT_TRANSFER_BAGS).fetchall(), [
+            ("banksia", "XA123-2026-10-23", "DELAYED"),
+            ("banksia", "XD802-2026-10-23", "SCHEDULED"),
+            ("kestrel", "XB77-2026-10-23", "CANCELLED"),
+        ])
+
+    def test_delayed_flights_count_transfer_bags_including_zero(self):
+        self.assertEqual(self.db.execute(DELAYED_FLIGHTS_WITH_TRANSFER_BAGS).fetchall(), [
+            ("kestrel", "XA123-2026-10-23", "2026-10-23T03:40:00+00:00", 1),
+            ("banksia", "XA123-2026-10-23", "2026-10-23T03:40:00+00:00", 0),
+        ])
 
 
 if __name__ == "__main__":

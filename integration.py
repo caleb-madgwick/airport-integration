@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import re
+import sqlite3
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -228,6 +229,54 @@ def run(data):
     return result
 
 
+# --- Operational data: accepted records only, queried with SQL ------------------------
+
+SCHEMA = """
+CREATE TABLE flights (
+    customer TEXT NOT NULL, flight_key TEXT NOT NULL, status TEXT NOT NULL,
+    scheduled_departure_utc TEXT NOT NULL, estimated_departure_utc TEXT,
+    PRIMARY KEY (customer, flight_key));
+CREATE TABLE baggage_transfers (
+    customer TEXT NOT NULL, bag_tag TEXT NOT NULL,
+    inbound_flight_key TEXT NOT NULL, outbound_flight_key TEXT NOT NULL);
+"""
+
+# No recorded bags is not a problem in itself: Banksia sends no baggage feed at all.
+FLIGHTS_WITHOUT_TRANSFER_BAGS = """
+SELECT f.customer, f.flight_key, f.status
+FROM flights f
+LEFT JOIN baggage_transfers b
+    ON b.customer = f.customer AND b.outbound_flight_key = f.flight_key
+WHERE b.bag_tag IS NULL
+ORDER BY f.customer, f.flight_key
+"""
+
+DELAYED_FLIGHTS_WITH_TRANSFER_BAGS = """
+SELECT f.customer, f.flight_key, f.estimated_departure_utc, COUNT(b.bag_tag) AS transfer_bags
+FROM flights f
+LEFT JOIN baggage_transfers b
+    ON b.customer = f.customer AND b.outbound_flight_key = f.flight_key
+WHERE f.status = 'DELAYED'
+GROUP BY f.customer, f.flight_key
+ORDER BY transfer_bags DESC, f.customer, f.flight_key
+"""
+
+
+def load_operational_db(result):
+    """Load accepted records into an in-memory SQLite database. Nothing else goes in."""
+    db = sqlite3.connect(":memory:")
+    db.executescript(SCHEMA)
+    for r in result["accepted"]:
+        if isinstance(r, Flight):
+            estimated = r.estimated_departure_utc.isoformat() if r.estimated_departure_utc else None
+            db.execute("INSERT INTO flights VALUES (?, ?, ?, ?, ?)", (r.customer, r.flight_key,
+                       r.status, r.scheduled_departure_utc.isoformat(), estimated))
+        else:
+            db.execute("INSERT INTO baggage_transfers VALUES (?, ?, ?, ?)", (r.customer, r.bag_tag,
+                       r.inbound_flight_key, r.outbound_flight_key))
+    return db
+
+
 def to_json(value):
     if is_dataclass(value):
         return {"type": type(value).__name__, **asdict(value)}
@@ -238,3 +287,11 @@ if __name__ == "__main__":
     result = run(json.loads(Path(__file__).with_name("sample_data.json").read_text()))
     print(json.dumps(result, indent=2, default=to_json))
     print(" | ".join(f"{outcome}: {len(items)}" for outcome, items in result.items()))
+    db = load_operational_db(result)
+    queries = {"Flights with no recorded outbound transfer bags": FLIGHTS_WITHOUT_TRANSFER_BAGS,
+               "Delayed flights and their transfer bags": DELAYED_FLIGHTS_WITH_TRANSFER_BAGS}
+    for title, query in queries.items():
+        cursor = db.execute(query)
+        print(f"\n{title}:\n  " + " | ".join(column[0] for column in cursor.description))
+        for row in cursor:
+            print("  " + " | ".join(str(value) for value in row))

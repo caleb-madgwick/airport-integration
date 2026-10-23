@@ -10,30 +10,30 @@ Airport systems don't agree: flight APIs and baggage exports each use their own 
 
 ![Integration architecture](architecture.svg)
 
-Customer data passes through **adapters** into a shared **canonical model**, goes through **validation**, and only trusted records reach the **dispatch platform**.
+Customer data passes through **adapters** into a shared **canonical model** and **validation**. Only accepted records are loaded into **SQLite**. The dispatch platform is hypothetical.
 
 ## Key Design Decisions
 
 - **Reusable adapters:** each customer's format is handled in one small adapter, so onboarding is repeatable and customer formats never reach the core.
-- **Shared validation:** the same rules apply to every customer, so unreliable data can't slip through to downstream systems.
-- **Three explicit outcomes:** every record is **accepted**, **held for review** or **rejected** with a reason, so problems are visible rather than silently ignored.
+- **Shared validation:** the same rules apply to every customer, so unreliable data never reaches downstream systems.
+- **Three explicit outcomes:** every record is **accepted**, **held for review** or **rejected** with a reason, so problems stay visible.
 
 ## Customer Onboarding
 
 **Discover → Design → Validate → Deploy**
 
-Adding the second fictional customer took one new adapter, its config and tests. The core model and validation logic didn't change.
+The second fictional customer took one new adapter, its config and tests. The core model and validation logic didn't change.
 
 ## Run the Demo
 
-Requires Python 3.9+ and only the standard library.
+Python 3.9+, standard library only.
 
 ```bash
 python3 integration.py
 python3 -m unittest -v
 ```
 
-The demo shows one flight, sent in two customers' formats, producing an identical record. Bad or conflicting data is rejected or held for review instead of being guessed. The 15 sample records give 7 accepted, 2 held for review and 6 rejected.
+One flight sent in two customers' formats produces an identical record. Bad or conflicting data is rejected or held for review, never guessed. The 15 sample records give 7 accepted, 2 held for review and 6 rejected. Accepted records are then loaded into in-memory SQLite and queried for operational insights.
 
 ## Production Reliability (design only)
 
